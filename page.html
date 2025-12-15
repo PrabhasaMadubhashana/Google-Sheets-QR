@@ -1,0 +1,241 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont;
+      background:#020617;
+      color:#fff;
+    }
+
+    .screen{
+      min-height:100vh;
+      padding:20px;
+      display:flex;
+      flex-direction:column;
+      gap:18px;
+    }
+
+    .header{
+      text-align:center;
+    }
+
+    .name{
+      font-size:36px;
+      font-weight:900;
+    }
+
+    .ticket{
+      font-size:22px;
+      opacity:.85;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:16px;
+    }
+
+    .tile{
+      background:#0f172a;
+      border-radius:22px;
+      padding:26px;
+      text-align:center;
+      box-shadow:0 10px 30px rgba(0,0,0,.45);
+    }
+
+    .label{
+      font-size:20px;
+      opacity:.75;
+      margin-bottom:10px;
+    }
+
+    .value{
+      font-size:32px;
+      font-weight:900;
+    }
+
+    .yes{ color:#22c55e; }
+    .no{ color:#ef4444; }
+
+    .wide{
+      grid-column:span 2;
+    }
+
+    .login input{
+      width:100%;
+      padding:20px;
+      font-size:24px;
+      border-radius:16px;
+      border:none;
+      margin-bottom:14px;
+    }
+
+    .btn{
+      width:100%;
+      padding:24px;
+      font-size:28px;
+      font-weight:900;
+      border-radius:20px;
+      border:none;
+      cursor:pointer;
+    }
+
+    .unlock{ background:#2563eb; color:white; }
+    .confirm{ background:#22c55e; color:#052e16; }
+
+    .overlay{
+      position:fixed;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      flex-direction:column;
+      font-size:52px;
+      font-weight:900;
+      z-index:9999;
+      text-align:center;
+    }
+
+    .green{ background:#16a34a; }
+    .red{ background:#b91c1c; }
+
+    .overlay small{
+      font-size:24px;
+      margin-top:14px;
+      opacity:.95;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="screen">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="name"><?= p.Name ?></div>
+    <div class="ticket">Techfest25_<?= p.Serial_No ?></div>
+  </div>
+
+  <!-- STATUS GRID -->
+  <div class="grid">
+
+    <div class="tile">
+      <div class="label">NIC</div>
+      <div class="value"><?= p.NIC ?></div>
+    </div>
+
+    <div class="tile">
+      <div class="label">Attendance</div>
+      <div class="value <?= p.Attendance === 'YES' ? 'yes':'no' ?>">
+        <?= p.Attendance || 'NO' ?>
+      </div>
+    </div>
+
+    <div class="tile">
+      <div class="label">T-Shirt Purchased</div>
+      <div class="value <?= p.TShirt_Purchased === 'YES' ? 'yes':'no' ?>">
+        <?= p.TShirt_Purchased ?>
+      </div>
+    </div>
+
+    <div class="tile">
+      <div class="label">T-Shirt Size</div>
+      <div class="value"><?= p.T_Shirt_Size ?></div>
+    </div>
+
+    <div class="tile">
+      <div class="label">T-Shirt Issued</div>
+      <div class="value <?= p.TShirt_Issued === 'YES' ? 'yes':'no' ?>">
+        <?= p.TShirt_Issued || 'NO' ?>
+      </div>
+    </div>
+
+    <div class="tile">
+      <div class="label">Wristband</div>
+      <div class="value <?= p.WristBand_purchased === 'YES' ? 'yes':'no' ?>">
+        <?= p.WristBand_purchased ?>
+      </div>
+    </div>
+
+    <!-- STAFF AREA -->
+    <div class="tile wide" id="staffArea"></div>
+
+  </div>
+</div>
+
+<!-- FEEDBACK SCREENS -->
+<div class="overlay green" id="ok">
+  ✔ CONFIRMED
+  <small>Access Granted</small>
+</div>
+
+<div class="overlay red" id="already">
+  ✖ ALREADY CHECKED IN
+  <small>Do not allow entry</small>
+</div>
+
+<script>
+  const token = "<?= p['QR Token'] ?>";
+  let busy = false;
+
+  if (sessionStorage.getItem("staff")) showConfirm();
+  else showLogin();
+
+  function showLogin(){
+    document.getElementById("staffArea").innerHTML = `
+      <div class="login">
+        <input id="code" placeholder="Staff Code">
+        <button class="btn unlock" onclick="login()">UNLOCK</button>
+      </div>
+    `;
+  }
+
+  function login(){
+    google.script.run.withSuccessHandler(name=>{
+      if(name){
+        sessionStorage.setItem("staff",name);
+        showConfirm();
+      }else{
+        alert("Invalid staff code");
+      }
+    }).validateStaff(document.getElementById("code").value.trim());
+  }
+
+  function showConfirm(){
+    document.getElementById("staffArea").innerHTML = `
+      <button class="btn confirm" onclick="confirm()">CONFIRM ATTENDANCE</button>
+    `;
+  }
+
+  function confirm(){
+    if(busy) return;
+    busy = true;
+
+    google.script.run.withSuccessHandler(res=>{
+      if(res === "CONFIRMED"){
+        document.getElementById("ok").style.display="flex";
+        setTimeout(resetUI, 1500);
+      }
+      else if(res === "ALREADY"){
+        document.getElementById("already").style.display="flex";
+        setTimeout(resetUI, 1000);
+      }
+      else{
+        alert(res);
+        busy = false;
+      }
+    }).markAction(token, sessionStorage.getItem("staff"));
+  }
+
+  function resetUI(){
+    location.reload(); // clean + safe for gate use
+  }
+</script>
+
+</body>
+</html>
